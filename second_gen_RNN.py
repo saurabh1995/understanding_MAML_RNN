@@ -29,20 +29,17 @@ def my_loss(y_true,y_pred):
 def model_klassiche():
     inputs = Input((None, 12))
     
-    cell1 = tf.keras.layers.SimpleRNNCell(units=208)
-    cell2 = tf.keras.layers.SimpleRNNCell(units=208)
-    cell3 = tf.keras.layers.SimpleRNNCell(units=208)
-    cell4 = tf.keras.layers.SimpleRNNCell(units=208)
+
     
     
     
-    layer_1     = RNN(cell1, return_sequences=True)
+    layer_1     = tf.keras.layers.SimpleRNN(208, return_sequences=True, dropout=0.1)
     
-    layer_2     = RNN(cell2, return_sequences=True)
+    layer_2     = tf.keras.layers.SimpleRNN(208, return_sequences=True, dropout=0.1)
     
-    layer_3     = RNN(cell3, return_sequences=True)
+    layer_3     = tf.keras.layers.SimpleRNN(208, return_sequences=True, dropout=0.1)
     
-    layer_4     = RNN(cell4, return_sequences=True)
+    layer_4     = tf.keras.layers.SimpleRNN(208, return_sequences=True, dropout=0.1)
     
     X           = layer_1(inputs)
     
@@ -76,21 +73,17 @@ class TrainModel_RNN(keras.Model):
         super().__init__()
         
 
-        cell1 = tf.keras.layers.SimpleRNNCell(units=208)
-        cell2 = tf.keras.layers.SimpleRNNCell(units=208)
-        cell3 = tf.keras.layers.SimpleRNNCell(units=208)
-        cell4 = tf.keras.layers.SimpleRNNCell(units=208)
         
 
         
 
-        self.hidden1               = tf.keras.layers.RNN(cell1, return_sequences=True, unroll=True)
-        self.hidden2               = tf.keras.layers.RNN(cell2, return_sequences=True, unroll=True)
-        self.hidden3               = tf.keras.layers.RNN(cell3, return_sequences=True, unroll=True)        
+        self.hidden1               = tf.keras.layers.SimpleRNN(208, return_sequences=True, unroll=True, dropout=0.1)
+        self.hidden2               = tf.keras.layers.SimpleRNN(208, return_sequences=True, unroll=True, dropout=0.1)
+        self.hidden3               = tf.keras.layers.SimpleRNN(208, return_sequences=True, unroll=True, dropout=0.1)        
         
         
 
-        self.Deco                  = tf.keras.layers.RNN(cell4, return_sequences=True, unroll=True)
+        self.Deco                  = tf.keras.layers.SimpleRNN(208, return_sequences=True, unroll=True, dropout=0.1)
 
 
         self.d1                            = Dense(240, activation='tanh')
@@ -109,19 +102,8 @@ class TrainModel_RNN(keras.Model):
         x = self.hidden2(x)
         
         x = self.hidden3(x)
-
-        #x = self.hidden4(x)
-
-        # x = self.hidden5(x)
-
-        #x = self.out(x)
-        
+ 
         x = self.Deco(x)
-
-        x = tf.math.tanh(x)
-
-        #x = self.Norm(x)
-
         
         x = self.d1(x)
         
@@ -167,10 +149,11 @@ def MAML_LMU_multiple_adapt_inner_outer(model, train_dataset, test_dataset, inpu
 
     lr_inner = 0.001
     val_loss = [0]
+    losses   = [0]
     for tt in range(epochs):
 
         total_loss = 0
-        losses = []
+        
         
         meta_grads = [tf.zeros_like(w) for w in model.trainable_variables]
         # Step 3 and 4
@@ -271,7 +254,7 @@ def MAML_LMU_multiple_adapt_inner_outer(model, train_dataset, test_dataset, inpu
             break
                 #start = time.time()
                 
-    return loss, losses
+    return loss, losses, val_loss
 
 
 
