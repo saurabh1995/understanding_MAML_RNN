@@ -33,13 +33,13 @@ def model_klassiche():
     
     
     
-    layer_1     = tf.keras.layers.SimpleRNN(208, return_sequences=True, dropout=0.1)
+    layer_1     = tf.keras.layers.SimpleRNN(208, return_sequences=True, dropout=0)
     
-    layer_2     = tf.keras.layers.SimpleRNN(208, return_sequences=True, dropout=0.1)
+    layer_2     = tf.keras.layers.SimpleRNN(208, return_sequences=True, dropout=0)
     
-    layer_3     = tf.keras.layers.SimpleRNN(208, return_sequences=True, dropout=0.1)
+    layer_3     = tf.keras.layers.SimpleRNN(208, return_sequences=True, dropout=0)
     
-    layer_4     = tf.keras.layers.SimpleRNN(208, return_sequences=True, dropout=0.1)
+    layer_4     = tf.keras.layers.SimpleRNN(208, return_sequences=True, dropout=0)
     
     X           = layer_1(inputs)
     
@@ -77,18 +77,18 @@ class TrainModel_RNN(keras.Model):
 
         
 
-        self.hidden1               = tf.keras.layers.SimpleRNN(208, return_sequences=True, unroll=True, dropout=0.1)
-        self.hidden2               = tf.keras.layers.SimpleRNN(208, return_sequences=True, unroll=True, dropout=0.1)
-        self.hidden3               = tf.keras.layers.SimpleRNN(208, return_sequences=True, unroll=True, dropout=0.1)        
+        self.hidden1               = tf.keras.layers.SimpleRNN(208, return_sequences=True, unroll=True, dropout=0)
+        self.hidden2               = tf.keras.layers.SimpleRNN(208, return_sequences=True, unroll=True, dropout=0)
+        self.hidden3               = tf.keras.layers.SimpleRNN(208, return_sequences=True, unroll=True, dropout=0)        
         
         
 
-        self.Deco                  = tf.keras.layers.SimpleRNN(208, return_sequences=True, unroll=True, dropout=0.1)
+        self.Deco                  = tf.keras.layers.SimpleRNN(208, return_sequences=True, unroll=True, dropout=0)
 
 
         self.d1                            = Dense(240, activation='tanh')
         self.d2                            = Dense(64, activation='tanh')
-        self.d3                            = Dense(1, activation='linear')
+        self.d3                            = Dense(1, activation='tanh')
         
         
     
@@ -150,10 +150,12 @@ def MAML_LMU_multiple_adapt_inner_outer(model, train_dataset, test_dataset, inpu
     lr_inner = 0.001
     val_loss = [0]
     losses   = [0]
+    train_losses = [0]
+    
     for tt in range(epochs):
 
         total_loss = 0
-        
+        train_loss_ = 0
         
         meta_grads = [tf.zeros_like(w) for w in model.trainable_variables]
         # Step 3 and 4
@@ -173,7 +175,7 @@ def MAML_LMU_multiple_adapt_inner_outer(model, train_dataset, test_dataset, inpu
                     adapted_weights = []
                     with tf.GradientTape(persistent=True) as train_tape:
                         train_loss, _ = compute_loss(model, x, y)
-    
+                    #train_loss_.append(train_loss)
                     # Step 6
                     #print(f'Train loss: {train_loss}')
                     gradients = train_tape.gradient(train_loss, model.trainable_variables)
@@ -236,12 +238,15 @@ def MAML_LMU_multiple_adapt_inner_outer(model, train_dataset, test_dataset, inpu
             #print('Hi')
             # Logs
             total_loss += test_loss
+            train_loss_+=train_loss
         loss = total_loss / (i+1.0)
+        loss1 = train_loss_/(i+1.0)
         losses.append(loss)
+        train_losses.append(loss1)
 
     #         if loss.numpy()<1e-2:
     #             break
-        print('Loss: '+str(np.linalg.norm(loss)), 'Epoch nr: '+str(tt+1))
+        print('Meta val Loss: '+str(np.linalg.norm(loss)), 'Meta train Loss: '+str(np.linalg.norm(loss1)), 'Epoch nr: '+str(tt+1))
         optimizer.apply_gradients(zip(meta_grads, model.trainable_variables))
         meta_gradient_norm = tf.norm(tf.concat([tf.reshape(g, [-1]) for g in meta_grads if g is not None], axis=0))
         
@@ -254,7 +259,7 @@ def MAML_LMU_multiple_adapt_inner_outer(model, train_dataset, test_dataset, inpu
             break
                 #start = time.time()
                 
-    return loss, losses, val_loss
+    return loss, losses, val_loss, train_losses
 
 
 
