@@ -58,9 +58,9 @@ class HSNN(tf.keras.layers.Layer):
         i_in = inputs @ self.input_weights + old_spike @ w_rec
       
         # update the voltage
-        d = self.decay
+        d       = self.decay
         i_reset = - self.thr * old_spike
-        new_v = d * old_v + (1-d)*i_in + i_reset
+        new_v   = d * old_v + (1-d)*i_in + i_reset
 
         v_scaled   = (new_v - self.thr) / self.thr
         new_z      = SpikeFunction(v_scaled, self.dampening_factor)
