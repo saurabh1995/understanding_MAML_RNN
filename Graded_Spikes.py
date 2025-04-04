@@ -71,6 +71,14 @@ class GSN(tf.keras.layers.Layer):
         return w_rec
 
     def call(self, inputs, states):
+
+        # Compute scaling factors
+        self.compute_scaling_factors()
+
+        # Quantize weights
+        self.quantize_weights()
+
+        
         old_v = states[0]
         old_spike = states[1]
 
