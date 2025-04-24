@@ -11,7 +11,7 @@ from tensorflow.keras.models import Model, load_model
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 import tensorflow.keras as keras
-from GSN_Network import GSN
+from HSN_QAC import GSN
 
 gpu_devices = tf.config.experimental.list_physical_devices("GPU")
 for device in gpu_devices:
@@ -30,10 +30,10 @@ def my_loss(y_true,y_pred):
 
 def model_klassiche():
     
-    cell1                           = GSN(208, thr = 1e-7)
-    cell2                           = GSN(208, thr = 1e-7)
-    cell3                           = GSN(208, thr = 1e-7)
-    cell4                           = GSN(208, thr = 1e-7)
+    cell1                           = GSN(208, thr = 1)
+    cell2                           = GSN(208, thr = 1)
+    cell3                           = GSN(208, thr = 1)
+    cell4                           = GSN(208, thr = 1)
 
     
     
@@ -91,15 +91,15 @@ class TrainModel(keras.Model):
         
         super().__init__()
                  
-        cell1                      = GSN(208, thr=1e-7)
-        cell2                      = GSN(208, thr=1e-7)
-        cell3                      = GSN(208, thr=1e-7)
+        cell1                      = GSN(208, thr=1)
+        cell2                      = GSN(208, thr=1)
+        cell3                      = GSN(208, thr=1)
 
         self.hidden1               = tf.keras.layers.RNN(cell1, return_sequences=True, unroll=True)
         self.hidden2               = tf.keras.layers.RNN(cell2, return_sequences=True, unroll=True)
         self.hidden3               = tf.keras.layers.RNN(cell3, return_sequences=True, unroll=True)        
         
-        Dec                        = GSN(208, thr=1e-7)
+        Dec                        = GSN(208, thr=1)
 
         self.Deco                  = tf.keras.layers.RNN(Dec, return_sequences=True, unroll=True)
 
@@ -197,28 +197,29 @@ def MAML_LMU_multiple_adapt_inner_outer(model, train_dataset, test_dataset, inpu
                     gradients = train_tape.gradient(train_loss, model.trainable_variables)
                     k = 0
                     
-                    model_copy = copy_model_RNN(model, x)
+                    model_copy = copy_model(model, x)
     
                     for j in range(len(model_copy.layers)):
                         
 
                         if isinstance(model_copy.layers[j], tf.keras.layers.RNN):
                             
-                            model_copy.layers[j].cell.kernel = tf.subtract(model.layers[j].cell.kernel,
+                            model_copy.layers[j].cell.input_weights = tf.subtract(model.layers[j].cell.input_weights,
                                         tf.multiply(lr_inner, gradients[k]))
-                            model_copy.layers[j].cell.recurrent_kernel = tf.subtract(model.layers[j].cell.recurrent_kernel,
+                            model_copy.layers[j].cell.recurrent_weights = tf.subtract(model.layers[j].cell.recurrent_weights,
                                     tf.multiply(lr_inner, gradients[k+1]))
-                            model_copy.layers[j].cell.bias = tf.subtract(model.layers[j].cell.bias,
-                                        tf.multiply(lr_inner, gradients[k+2]))
+                            #model_copy.layers[j].cell.thr = tf.subtract(model.layers[j].cell.thr,
+                            #             tf.multiply(lr_inner, gradients[k+2]))
+                            #k += 3
+                            #k  += 2
 
-                            adapted_weights.append(tf.subtract(model.layers[j].cell.kernel,
+                            adapted_weights.append(tf.subtract(model.layers[j].cell.input_weights,
                                         tf.multiply(lr_inner, gradients[k])))
-                            adapted_weights.append(tf.subtract(model.layers[j].cell.recurrent_kernel,
+                            adapted_weights.append(tf.subtract(model.layers[j].cell.recurrent_weights,
                                     tf.multiply(lr_inner, gradients[k+1])))
-                            adapted_weights.append(tf.subtract(model.layers[j].cell.bias,
-                                        tf.multiply(lr_inner, gradients[k+2])))
                             
-                            k += 3
+                            
+                            k += 2
                             
 
                         elif isinstance(model_copy.layers[j], tf.keras.layers.Dense):

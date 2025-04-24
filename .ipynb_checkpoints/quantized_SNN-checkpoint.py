@@ -91,8 +91,8 @@ class QRSNN(tf.keras.layers.Layer):
         v_scaled = new_v_scaled - int_thr
         new_z = SpikeFunction(v_scaled, self.dampening_factor)
 
-        new_state = (new_v, new_z)
-        return new_z, new_state
+        new_state = (new_v, new_v_scaled*new_z)
+        return new_z*new_v_scaled, new_state
 
 @tf.custom_gradient
 def SpikeFunction(v_scaled, dampening_factor):
