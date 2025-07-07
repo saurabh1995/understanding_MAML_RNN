@@ -6,6 +6,10 @@ import numpy as np
 def pseudo_derivative(v_scaled, dampening_factor):
     return tf.math.atan(tf.maximum(0.,1 - tf.abs(v_scaled))*dampening_factor)
 
+def pseudo_derivative_fs(x, dampening_factor=1.0):
+    abs_x = tf.abs(x)
+    derivative = dampening_factor / tf.square(1.0 + abs_x)
+    return derivative
 
 
 @tf.custom_gradient
@@ -19,7 +23,7 @@ def SpikeFunction(v_scaled, dampening_factor):
         # This is where we overwrite the gradient
         # dy = dE/dz (total derivative) is the gradient back-propagated from the loss down to z(t)
         dE_dz = dy
-        dz_dv_scaled = pseudo_derivative(v_scaled, dampening_factor)
+        dz_dv_scaled = pseudo_derivative_fs(v_scaled, dampening_factor)
         dE_dv_scaled = dE_dz * dz_dv_scaled
 
         return [dE_dv_scaled, tf.zeros_like(dampening_factor)]

@@ -82,7 +82,7 @@ def SpikeFunction(v_scaled, dampening_factor):
         # This is where we overwrite the gradient
         # dy = dE/dz (total derivative) is the gradient back-propagated from the loss down to z(t)
         dE_dz = dy
-        dz_dv_scaled = pseudo_derivative(v_scaled, dampening_factor)
+        dz_dv_scaled = pseudo_derivative_sigmoid(v_scaled, dampening_factor)
         dE_dv_scaled = dE_dz * dz_dv_scaled
 
         return [dE_dv_scaled, tf.zeros_like(dampening_factor)]
@@ -92,3 +92,25 @@ def SpikeFunction(v_scaled, dampening_factor):
 
 def pseudo_derivative(v_scaled, dampening_factor):
     return tf.math.atan(tf.maximum(0.,1 - tf.abs(v_scaled))*dampening_factor)
+
+
+def pseudo_derivative_fs(x, dampening_factor=1.0):
+    abs_x = tf.abs(x)
+    derivative = dampening_factor / tf.square(1.0 + abs_x)
+    return derivative
+
+def pseudo_derivative_sigmoid(x, dampening_factor=1.0):
+    """
+    Compute a dampened “pseudo-derivative” of the standard sigmoid.
+
+    Args:
+      x: Tensor of arbitrary shape.
+      dampening_factor: Scalar float to scale the derivative.
+
+    Returns:
+      Tensor of same shape as x, with values dampening_factor * σ(x) * (1 - σ(x)).
+    """
+    # 1) compute standard sigmoid
+    s = tf.sigmoid(x)
+    # 2) apply the closed-form derivative σ(x)*(1 - σ(x))
+    return dampening_factor * s * (1.0 - s)
