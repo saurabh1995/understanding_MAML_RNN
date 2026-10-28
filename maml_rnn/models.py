@@ -34,10 +34,9 @@ def make_cell(cell_type, units, params=None):
     if cell_type in KERAS_CELLS:
         params = {k: v for k, v in params.items() if k not in SPIKING_ONLY_PARAMS}
         return KERAS_CELLS[cell_type](units, **params)
-    try:
-        return CELLS[cell_type](units, **params)
-    except KeyError:
-        raise ValueError(f"Unknown cell '{cell_type}'. Available: {sorted(CELLS) + sorted(KERAS_CELLS)}") from None
+    if cell_type not in CELLS:
+        raise ValueError(f"Unknown cell '{cell_type}'. Available: {sorted(CELLS) + sorted(KERAS_CELLS)}")
+    return CELLS[cell_type](units, **params)
 
 
 def build_model(model_cfg, seq_len=None):

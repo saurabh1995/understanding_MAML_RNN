@@ -64,6 +64,8 @@ v6  ``MAML_LMU_multiple_adapt_inner_outer``  ->  ``MAML_v6_AdaptInnerOuter``  (u
     differentiated through.
 """
 
+import warnings
+
 import tensorflow as tf
 
 from ..functional import ShadowModel, param_layers
@@ -89,6 +91,10 @@ class _MAMLBase(Strategy):
         self.adapt_mask = [self._is_adapted(layer) for layer in param_layers(model)]
         if not any(self.adapt_mask):
             raise ValueError(f"adapt='{p['adapt']}' selects no parameters of this model")
+        if self.inner_steps > 1 and not self.write_back:
+            warnings.warn(f"[{self.name}] inner_steps={self.inner_steps} without write-back: every inner step "
+                          "starts from the meta-parameters, so the result equals a single step "
+                          "(use maml_v6_adapt_inner_outer for chained inner steps)", RuntimeWarning)
         if self.verbose:
             n = sum(self.adapt_mask)
             print(f"[{self.name}] adapting {n}/{len(self.adapt_mask)} parameter tensors (adapt='{p['adapt']}')")
@@ -117,7 +123,9 @@ class _MAMLBase(Strategy):
     def _task_meta_gradient(self, model, x, y, xq, yq):
         """Meta-gradient and query loss of one task (support ``x, y``; query ``xq, yq``)."""
         theta = model.trainable_variables
-        outer_weights = model.get_weights() if self.write_back else None
+        # only needed when inner steps are actually chained through the variables
+        chain = self.write_back and self.inner_steps > 1
+        outer_weights = [tf.identity(v) for v in theta] if chain else None
 
         with tf.GradientTape() as outer_tape:
             for step in range(self.inner_steps):
@@ -125,14 +133,15 @@ class _MAMLBase(Strategy):
                     support_loss, _ = compute_loss(model, x, y)
                 grads = inner_tape.gradient(support_loss, theta)
                 adapted = self._inner_step(theta, grads)
-                if self.write_back and step < self.inner_steps - 1:
+                if chain and step < self.inner_steps - 1:
                     # v6: the next inner step starts from the adapted weights
                     for var, value in zip(theta, adapted):
                         var.assign(value)
             query_loss, _ = compute_loss(lambda inp: self.shadow(adapted, inp), xq, yq)
 
-        if self.write_back:
-            model.set_weights(outer_weights)
+        if chain:
+            for var, value in zip(theta, outer_weights):
+                var.assign(value)
         return outer_tape.gradient(query_loss, theta), query_loss
 
     # -- outer update -------------------------------------------------------------------
@@ -176,7 +185,9 @@ class _MAMLBase(Strategy):
             meta_grads = [tf.zeros_like(v) for v in model.trainable_variables]
             queries = self._query_batches(data)
 
-            for i, (x, y) in enumerate(tasks):
+            n_tasks = 0
+            for x, y in tasks:
+                n_tasks += 1
                 xq, yq = next(queries)
                 grads, query_loss = self._task_meta_gradient(model, x, y, xq, yq)
                 if self.per_task_update:
@@ -184,7 +195,9 @@ class _MAMLBase(Strategy):
                 meta_grads = self._accumulate(meta_grads, grads)
                 total_loss += query_loss
 
-            mean_loss = loss_norm(total_loss / (i + 1.))
+            if n_tasks == 0:
+                raise ValueError(f"[{self.name}] the training split is empty, there are no tasks to meta-train on")
+            mean_loss = loss_norm(total_loss / n_tasks)
             grad_norm = self._global_norm(meta_grads)
             if not self.per_task_update:
                 self._apply(meta_grads, model)

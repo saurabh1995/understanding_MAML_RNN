@@ -153,7 +153,10 @@ class SLMUcell(tf.keras.layers.Layer):
             out = tf.math.tanh(o_new)
         else:
             out = new_z * tf.math.tanh(o_new)
-        return out, [o_new] + [m]
+        # o_new replaces the hidden cell's first state (it is read back as h[0] above);
+        # any further hidden states (e.g. the LSTM carry) are passed through unchanged
+        h = tf.nest.flatten(h)
+        return out, [o_new] + h[1:] + [m]
 
     def get_config(self):
         config = super().get_config()

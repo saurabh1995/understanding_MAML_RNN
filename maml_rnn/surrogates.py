@@ -41,7 +41,8 @@ def _make_spike_function(pseudo_derivative, normalize=False, clip_norm=1.0):
             # the Heaviside derivative is replaced by the pseudo-derivative.
             dE_dv_scaled = dy * pseudo_derivative(v_scaled, dampening_factor)
             if normalize:
-                dE_dv_scaled = dE_dv_scaled * (clip_norm / tf.linalg.norm(dE_dv_scaled))
+                # divide_no_nan: a zero gradient stays zero instead of becoming NaN
+                dE_dv_scaled = dE_dv_scaled * tf.math.divide_no_nan(clip_norm, tf.linalg.norm(dE_dv_scaled))
             return [dE_dv_scaled, tf.zeros_like(dampening_factor)]
 
         return tf.identity(z, name="SpikeFunction"), grad

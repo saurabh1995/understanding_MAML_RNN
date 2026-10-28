@@ -20,6 +20,12 @@ The index mapping is therefore computed before the first substitution.
 
 import tensorflow as tf
 
+try:    # Keras 3 (TF >= 2.16) stores weights as keras.Variable, which is not a tf.Variable
+    import keras
+    _VARIABLE_TYPES = (tf.Variable, keras.Variable)
+except (ImportError, AttributeError):
+    _VARIABLE_TYPES = (tf.Variable,)
+
 
 def _weight_owners(model):
     """Yield ``(layer, owner, attr_name, variable)`` for every trainable weight attribute."""
@@ -28,7 +34,7 @@ def _weight_owners(model):
             if owner is None:
                 continue
             for name, value in list(vars(owner).items()):
-                if isinstance(value, tf.Variable) and value.trainable:
+                if isinstance(value, _VARIABLE_TYPES) and value.trainable:
                     yield layer, owner, name, value
 
 

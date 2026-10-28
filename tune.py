@@ -17,7 +17,7 @@ from maml_rnn.models import build_model
 from maml_rnn.utils import set_seed, setup_gpu
 
 
-def make_hypermodel(model_cfg, tuning, lr):
+def make_hypermodel(model_cfg, tuning, lr, seq_len=None):
 
     def model_builder(hp):
         cfg = dict(model_cfg)
@@ -30,7 +30,7 @@ def make_hypermodel(model_cfg, tuning, lr):
         n_dense = hp.Int('Dense_layers', *tuning["dense_layers"], default=tuning["dense_layers"][0])
         cfg["dense_units"] = [dense_units] * n_dense
 
-        model = build_model(cfg)
+        model = build_model(cfg, seq_len)
         model.compile(optimizer=tf.keras.optimizers.Adam(lr), loss=my_loss)
         return model
 
@@ -54,7 +54,7 @@ def main():
     set_seed(cfg.get("seed"))
     data = prepare_data(cfg["data"])
 
-    tuner = kt.Hyperband(make_hypermodel(cfg["model"], tuning, cfg["strategies"]["classical"]["lr"]),
+    tuner = kt.Hyperband(make_hypermodel(cfg["model"], tuning, cfg["strategies"]["classical"]["lr"], data.seq_len),
                          objective='loss', max_epochs=tuning["max_epochs"], factor=tuning["factor"],
                          directory=tuning["directory"], project_name=tuning["project_name"],
                          hyperband_iterations=tuning["hyperband_iterations"])

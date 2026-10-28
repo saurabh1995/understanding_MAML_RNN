@@ -34,7 +34,9 @@ def apply_overrides(cfg, overrides):
         node = cfg
         *parents, leaf = key.strip().split(".")
         for p in parents:
-            node = node.setdefault(p, {})
+            if not isinstance(node.get(p), dict):
+                node[p] = {}     # also replaces e.g. `decoder: null`
+            node = node[p]
         node[leaf] = yaml.safe_load(raw)
     return cfg
 

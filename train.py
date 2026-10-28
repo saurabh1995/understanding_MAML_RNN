@@ -16,7 +16,7 @@ Each run writes to ``<output_dir>/<strategy>_<timestamp>/``:
 import argparse
 import os
 
-from maml_rnn.config import load_config, save_config, strategy_config
+from maml_rnn.config import deep_update, load_config, save_config, strategy_config
 from maml_rnn.data import prepare_data
 from maml_rnn.losses import my_loss
 from maml_rnn.models import model_factory
@@ -47,7 +47,12 @@ def main():
     if args.strategy:
         overrides.insert(0, f"strategy={args.strategy}")
     cfg = load_config(args.config, overrides)
-    cfg["strategy"] = name = resolve_name(cfg["strategy"])
+    requested = cfg["strategy"]
+    cfg["strategy"] = name = resolve_name(requested)
+    if requested != name and requested in cfg.get("strategies", {}):
+        # settings given under the alias (e.g. strategies.maml.epochs) apply to the resolved strategy
+        alias_cfg = cfg["strategies"].pop(requested) or {}
+        cfg["strategies"][name] = deep_update(cfg["strategies"].get(name, {}), alias_cfg)
 
     setup_gpu()
     set_seed(cfg.get("seed"))
