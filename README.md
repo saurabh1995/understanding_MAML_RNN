@@ -25,7 +25,7 @@ The code in `maml_rnn/` and the three scripts are a restructured version of the 
 10. [Implementation notes](#10-implementation-notes)
 11. [Extending the code](#11-extending-the-code)
 12. [Notebook to module mapping](#12-notebook-to-module-mapping)
-13. [Verification and known limitations](#13-verification-and-known-limitations)
+
 
 ---
 
