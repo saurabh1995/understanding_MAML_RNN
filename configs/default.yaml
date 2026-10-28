@@ -1,0 +1,125 @@
+# Base configuration. Every experiment YAML is merged on top of this file and
+# `--set key.sub=value` overrides are applied last.
+# Defaults reproduce Understanding_MAML_RNN-Copy1.ipynb.
+
+strategy: classical          # classical | maml_v1_basic ... maml_v6_adapt_inner_outer | maml (= v6)
+seed: null                   # null = not seeded (as in the notebook)
+output_dir: runs
+
+data:
+  root: C:\Users\Tandale\sciebo\olddata\Phd\Writing\SLMU_paper\BVPs\Stress-Strain_Data_csv\BVP_1_GeomNL
+  input_prefix: strain
+  output_prefix: stress
+  # one sequence per element of the cartesian product -> file "<prefix>_<i><j><k><l>.csv"
+  index_grid: [[2, 3], [1, 2, 3], [1, 2, 3], [1, 5]]
+  columns: [0, 1, 3, 4, 5]   # components kept from strain/stress CSVs
+  feature_range: [-1, 1]
+  validation_size: 0.35
+  validation_seed: 38
+  test_size: 0.3             # fraction of the non-validation sequences
+  test_seed: 36
+
+model:                       # = model_klassiche
+  input_dim: 5
+  output_dim: 5
+  rnn:
+    cell: HSNN               # HSNN | RSNN | RSNN_vthr | DSNN | LSTM | GRU | SimpleRNN
+    units: 208
+    num_layers: 3
+    params: {thr: 1.0e-7}    # passed to the cell: thr, tau, dampening_factor, surrogate
+  decoder: null              # e.g. {cell: DSNN, units: 208, params: {thr: 1.0e-7}}
+  post_rnn_activation: tanh
+  dense_units: [240, 64]
+  dense_activation: tanh
+  output_activation: tanh
+  unroll: false
+
+training:
+  init_weights: null         # path to a weights.pkl to start from (e.g. meta-trained weights)
+
+strategies:
+  classical:
+    epochs: 200
+    batch_size: 4
+    lr: 0.001
+    stop_loss: 1.0e-4        # EarlyStoppingByAccuracy(monitor='loss', value=1e-4)
+    monitor_validation: true
+
+  # adapt: rnn | all (RNN + Dense) | lstm_dense
+  maml_v1_basic:
+    epochs: 200
+    batch_size: 1
+    inner_lr: 0.002
+    outer_lr: 0.001
+    inner_steps: 1
+    adapt: rnn
+    stop_loss: 1.0e-4
+
+  maml_v2_rlif:
+    epochs: 200
+    batch_size: 1
+    inner_lr: 0.001
+    outer_lr: 0.001
+    inner_steps: 1
+    adapt: rnn
+    stop_loss: 1.0e-4
+
+  maml_v3_meta_batch:
+    epochs: 200
+    batch_size: 1
+    inner_lr: 0.001
+    outer_lr: 0.001
+    inner_steps: 1
+    adapt: all
+    stop_loss: 1.0e-3
+
+  maml_v4_multi_inner:
+    epochs: 200
+    batch_size: 1
+    inner_lr: 0.001
+    outer_lr: 0.001
+    inner_steps: 1
+    adapt: lstm_dense
+    stop_loss: 2.0e-4
+
+  maml_v5_task_query:
+    epochs: 200
+    batch_size: 1
+    query_batch_size: 1
+    inner_lr: 0.001
+    outer_lr: 0.001
+    inner_steps: 1
+    adapt: all
+    stop_loss: 2.0e-4
+
+  maml_v6_adapt_inner_outer:
+    epochs: 200
+    batch_size: 1
+    inner_lr: 0.01
+    outer_lr: 0.001
+    inner_steps: 1
+    adapt: all
+    stop_grad_norm: 1.0e-4
+    stop_val_loss: 1.0e-4
+
+finetune:                    # finetune_compare.py (notebook cells 37-59)
+  num_sequences: 5           # random validation sequences to adapt on
+  sequence_indices: null     # or an explicit list, e.g. [0, 2]
+  epochs: 100
+  batch_size: 64
+  lr: 0.001
+  stop_loss: null            # e.g. 5.0e-5
+  freeze_layers: []          # model.layers indices, e.g. [1, 2, 3, 4, 5] = RNNs + tanh + Dense(240)
+  formats: [pdf, svg]
+
+tuning:                      # tune.py (keras-tuner Hyperband, notebook cells 11-14)
+  directory: my_dir
+  project_name: hyperband_rnn
+  max_epochs: 1000
+  factor: 3
+  hyperband_iterations: 5
+  batch_size: 32
+  rnn_layers: [1, 12]
+  rnn_units: [16, 256, 32]   # min, max, step
+  dense_layers: [1, 4]
+  dense_units: [16, 256, 32]
