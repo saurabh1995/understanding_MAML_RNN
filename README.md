@@ -63,8 +63,12 @@ maml_rnn/
 - TensorFlow 2.x with **Keras 2** (tested with TF 2.10). Keras 3 / TF ≥ 2.16 is not
   supported, because the MAML implementation sets Keras layer weight attributes to
   tensors (see [10.1](#101-shadowmodel-differentiating-through-the-inner-update)).
+  The weight lookup also recognises Keras 3 variables, but the MAML code has not been
+  tested on Keras 3.
 - numpy, scikit-learn, PyYAML, matplotlib
-- keras-tuner, only for `tune.py`
+- keras-tuner, only for `tune.py`. With TF < 2.16, use `pip install "keras-tuner==1.3.5"`
+  (tested). From 1.4 on, keras-tuner depends on the standalone `keras` package and can
+  upgrade it.
 
 All commands below are run from the repository root, so `maml_rnn` can be imported.
 
@@ -195,7 +199,7 @@ pseudo-derivatives, where `x = (v - thr)/thr` and `d` is the dampening factor:
 | `fast_sigmoid` | d / (1 + \|x\|)² |
 | `sigmoid` | d · σ(x) · (1 − σ(x)) |
 | `triangle_atan` | atan(max(0, 1 − \|x\|) · d) |
-| `atan_normalized` | atan(x · d), then rescaled to unit L2 norm |
+| `atan_normalized` | atan(x · d), then rescaled to unit L2 norm (an all-zero gradient stays zero) |
 
 Each cell keeps the surrogate of the module it came from as its default, so results
 match the original code. You can change it with `--set model.rnn.params.surrogate=fast_sigmoid`.
@@ -213,6 +217,9 @@ cell  = SLMUcell_LIF_thr(memory_d=10, order=10, theta=784,
                          hidden_cell=tf.keras.layers.SimpleRNNCell(units=208))
 layer = tf.keras.layers.RNN(cell, return_sequences=True)
 ```
+
+The hidden cell can also be an `LSTMCell`. Its extra (carry) state is passed through
+unchanged.
 
 ### 5.5 Loss
 
@@ -293,6 +300,8 @@ summed meta-gradient. The outer learning rate is 0.001 (Adam) for all variants.
 - **v3 → v4:** introduces `inner_steps`. Each inner iteration recomputes the gradient
   from the **unchanged** θ, so k steps give exactly the result of one step. This is
   reproduced on purpose. With spiking cells, `lstm_dense` adapts only the Dense layers.
+  The same holds for v1–v3. For v1–v5, a `RuntimeWarning` is raised whenever
+  `inner_steps > 1`.
 - **v4 → v5:** adaptation goes back to spiking RNN + Dense layers, and each task gets its own
   query batch (`query_batch_size`, default 1) cycled from the test split. In the
   notebook this query batch (`xx, yy`) was never defined, so v5 could not run. The
@@ -315,6 +324,10 @@ summed meta-gradient. The outer learning rate is 0.001 (Adam) for all variants.
 4. `--set key.sub=value` overrides are applied in the order given. Values are parsed as
    YAML (`--set model.dense_units=[128,64]`, `--set model.decoder=null`,
    `--set "model.decoder={cell: DSNN, units: 208, params: {thr: 1.0e-7}}"`).
+   A dotted key also works below a section that is `null` by default. For example,
+   `--set model.decoder.cell=DSNN --set model.decoder.units=208` creates the section.
+5. With `--strategy maml`, settings given under the alias (`--set strategies.maml.epochs=5`)
+   are merged into `strategies.maml_v6_adapt_inner_outer`.
 
 The resolved configuration is saved with every run, and a run's `config.yaml` can be
 passed back with `--config`.
@@ -438,7 +451,12 @@ python tune.py [--config FILE] [--set KEY=VALUE ...]
 
 Runs keras-tuner Hyperband on classical training, minimising the training loss. It
 searches the number and width of the RNN layers (cell type from `model.rnn.cell`) and of
-the Dense layers, then prints the best hyperparameters.
+the Dense layers, then prints the best hyperparameters. `model.unroll: true` is
+supported.
+
+On Windows, keep `tuning.directory` short (the default `my_dir` is fine). keras-tuner
+writes deeply nested checkpoint files. If the full path exceeds the 260-character
+limit, every trial fails with "The system cannot find the path specified".
 
 ## 9. Run outputs
 
@@ -498,7 +516,8 @@ not be used after that, which is why the index map is computed beforehand.
 | v5 query batch | undefined `xx, yy` | cycles through the test split |
 | non-adapted parameters in v1/v2 | crash at Dense layers (no `.cell`) | kept at θ, as intended |
 | `EarlyStoppingByAccuracy` | used `warnings` without importing it | fixed (`EarlyStoppingByValue`, old name kept as alias) |
-| SLMU cells | four ~250-line copies | one base class + 3 subclasses |
+| SLMU cells | four ~250-line copies; extra hidden-cell states dropped | one base class + 3 subclasses; hidden states passed through |
+| `atan_normalized` surrogate (`recurrent_LIF.py`) | NaN when the gradient is all zeros | stays zero (`divide_no_nan`) |
 | post-RNN tanh | `tf.math.tanh` op | `Activation('tanh')` layer, same position in `model.layers` |
 
 ## 11. Extending the code
