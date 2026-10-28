@@ -1,0 +1,3 @@
+# Meta-training as run in the notebook (cell 31):
+# MAML_LMU_multiple_adapt_inner_outer(model, ..., epochs=200, inner_epochs=1)
+strategy: maml_v6_adapt_inner_outer

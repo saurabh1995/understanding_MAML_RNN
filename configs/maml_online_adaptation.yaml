@@ -1,0 +1,9 @@
+# Example: continue meta-training from saved weights with 5 inner steps per task.
+#   python train.py --config configs/maml_online_adaptation.yaml --set training.init_weights=runs/<run>/weights.pkl
+# (Notebook cell 35 did this with a single validation sequence as the only task; here the
+#  tasks are still the training sequences.)
+strategy: maml_v6_adapt_inner_outer
+strategies:
+  maml_v6_adapt_inner_outer:
+    epochs: 1
+    inner_steps: 5
