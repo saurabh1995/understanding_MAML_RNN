@@ -558,32 +558,3 @@ Not ported: the prediction-vs-data plot (cell 44), the output un-scaling scratch
 (cells 60–62) and the unused multi-output model `model2` (cell 24). Use
 `data.y_scaler.inverse_transform` to un-scale predictions.
 
-## 13. Verification and known limitations
-
-**Checked (TF 2.10):**
-
-- **v6 parity:** the notebook's v6 code and `maml_v6_adapt_inner_outer` were run from the
-  same initial weights for one meta-epoch on two tasks. The updated weights were
-  identical for 1 and 2 inner steps.
-- **Cell parity:** `HSNN`, `DSNN` and `RSNN` give the same outputs and gradients as
-  `Hybrid_Spiking_Neuron.py`, `decoding.py` and `recurrent_LIF.py`.
-- **End-to-end runs:** all strategies ran through `train.py` (small network, 1–2 epochs),
-  including LSTM, `RSNN_vthr` and an RSNN + DSNN-decoder setup. `finetune_compare.py`
-  also ran end to end with frozen layers.
-
-**Known limitations:**
-
-- `tune.py` has not been run (keras-tuner was not available in the test environment).
-- Requires Keras 2 (see §2).
-- With the notebook's initialisation, `RSNN_vthr` thresholds in [−10, 10] make the
-  first layer almost never spike. The network output then becomes constant and the
-  gradients are zero (seen with v2). This is a property of the original cell, not of
-  the refactor.
-- The scalers are fitted on all sequences before splitting (§4), as in the notebook.
-- v4/v5 multi-step inner loops and v6 with `inner_steps > 1` behave as described in §6.3.
-- MAML runtime grows with tasks × inner steps × sequence length, because every step
-  runs the full RNN in eager mode.
-- `Understanding_MAML_RNN.ipynb` (the later notebook) uses a different dataset
-  (12 inputs → 1 output) and architecture (RSNN cells, DSNN decoder, softplus output).
-  Its model can be described through `model.*`, but its dataset needs a new
-  `load_sequences`.
